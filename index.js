@@ -1,3 +1,6 @@
+const express = require("express");
+const app = express();
+
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -8,6 +11,26 @@ const {
 const pino = require('pino');
 const qrcode = require('qrcode-terminal');
 
+// 🌐 KEEP ALIVE SERVER (IMPORTANT for Railway/Render)
+app.get("/", (req, res) => {
+    res.send("Bot is running 🚀");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log("🌐 Server running on port", PORT);
+});
+
+// 🛡️ CRASH HANDLER (IMPORTANT)
+process.on("uncaughtException", (err) => {
+    console.log("❌ Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+    console.log("❌ Promise Error:", err);
+});
+
+// 🤖 BOT START
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_session');
     const { version } = await fetchLatestBaileysVersion();
@@ -21,22 +44,24 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    // 📱 QR Code
+    // 📱 CONNECTION
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log('📱 Scan QR:');
+            console.log('📱 Scan QR Code:');
             qrcode.generate(qr, { small: true });
         }
 
         if (connection === 'open') {
-            console.log('✅ Bot Connected!');
+            console.log('✅ Bot Connected Successfully!');
         }
 
         if (connection === 'close') {
             const code = lastDisconnect?.error?.output?.statusCode;
+
             if (code !== DisconnectReason.loggedOut) {
+                console.log("⚠️ Reconnecting...");
                 startBot();
             } else {
                 console.log('🚪 Logged out');
@@ -44,7 +69,7 @@ async function startBot() {
         }
     });
 
-    // 💬 AUTO REPLY SECTION
+    // 💬 AUTO REPLY
     sock.ev.on('messages.upsert', async (msg) => {
         try {
             const message = msg.messages[0];
@@ -59,20 +84,23 @@ async function startBot() {
 
             console.log('📩 Message:', text);
 
-            // 🤖 Auto Replies
-            if (text?.toLowerCase().includes('hi')) {
+            if (!text) return;
+
+            const msgLower = text.toLowerCase();
+
+            if (msgLower.includes('hi')) {
                 await sock.sendMessage(from, {
-                    text: '👋 Hello! Auto Miraj Bot here 😄'
+                    text: '👋 Hello! Auto Bot here 😄'
                 });
             }
 
-            else if (text?.toLowerCase().includes('hello')) {
+            else if (msgLower.includes('hello')) {
                 await sock.sendMessage(from, {
                     text: '👋 Hi there! How can I help you?'
                 });
             }
 
-            else if (text?.toLowerCase().includes('price')) {
+            else if (msgLower.includes('price')) {
                 await sock.sendMessage(from, {
                     text: '💰 Please contact admin for price details.'
                 });
@@ -80,12 +108,12 @@ async function startBot() {
 
             else {
                 await sock.sendMessage(from, {
-                    text: '🤖 I am an auto reply bot. Type "hi" or "hello".'
+                    text: '🤖 I am an auto reply bot. Type hi or hello.'
                 });
             }
 
         } catch (err) {
-            console.log('Error:', err);
+            console.log('❌ Message Error:', err);
         }
     });
 }
