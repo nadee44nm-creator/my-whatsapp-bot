@@ -6,23 +6,22 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion
-} = require("@whiskeysockets/baileys");
+} = require('@whiskeysockets/baileys');
 
-const pino = require("pino");
-const qrcode = require("qrcode-terminal");
+const pino = require('pino');
+const qrcode = require('qrcode-terminal');
 
-// 🌐 KEEP ALIVE SERVER
+// 🌐 KEEP ALIVE SERVER (IMPORTANT for Railway/Render)
 app.get("/", (req, res) => {
     res.send("Bot is running 🚀");
 });
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
     console.log("🌐 Server running on port", PORT);
 });
 
-// 🛡️ ERROR HANDLER
+// 🛡️ CRASH HANDLER (IMPORTANT)
 process.on("uncaughtException", (err) => {
     console.log("❌ Uncaught Exception:", err);
 });
@@ -31,150 +30,136 @@ process.on("unhandledRejection", (err) => {
     console.log("❌ Promise Error:", err);
 });
 
-// 🤖 START BOT
+// 🤖 BOT START
 async function startBot() {
-
-    const { state, saveCreds } =
-        await useMultiFileAuthState("auth_session");
-
-    const { version } =
-        await fetchLatestBaileysVersion();
+    const { state, saveCreds } = await useMultiFileAuthState('auth_session');
+    const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
         version,
         auth: state,
-        logger: pino({ level: "silent" }),
+        logger: pino({ level: 'silent' }),
         browser: ["Auto Reply Bot", "Chrome", "1.0.0"]
     });
 
-    sock.ev.on("creds.update", saveCreds);
+    sock.ev.on('creds.update', saveCreds);
 
-    // 📱 CONNECTION UPDATE
-    sock.ev.on("connection.update", (update) => {
-
+    // 📱 CONNECTION
+    sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log("📱 Scan QR Code:");
+            console.log('📱 Scan QR Code:');
             qrcode.generate(qr, { small: true });
         }
 
-        if (connection === "open") {
-            console.log("✅ Bot Connected Successfully!");
+        if (connection === 'open') {
+            console.log('✅ Bot Connected Successfully!');
         }
 
-        if (connection === "close") {
-
-            const code =
-                lastDisconnect?.error?.output?.statusCode;
+        if (connection === 'close') {
+            const code = lastDisconnect?.error?.output?.statusCode;
 
             if (code !== DisconnectReason.loggedOut) {
                 console.log("⚠️ Reconnecting...");
                 startBot();
             } else {
-                console.log("🚪 Logged Out");
+                console.log('🚪 Logged out');
             }
         }
     });
 
-    // 💬 MESSAGE RECEIVE
-    sock.ev.on("messages.upsert", async (m) => {
-
+    // 💬 AUTO REPLY
+    sock.ev.on('messages.upsert', async (msg) => {
         try {
-
-            const message = m.messages[0];
+            const message = msg.messages[0];
 
             if (!message.message) return;
             if (message.key.fromMe) return;
 
             const from = message.key.remoteJid;
-
             const text =
                 message.message.conversation ||
                 message.message.extendedTextMessage?.text;
 
+            console.log('📩 Message:', text);
+
             if (!text) return;
 
-            console.log("📩 Message:", text);
+            const msgLower = text.toLowerCase();
 
-            const msg = text.toLowerCase();
+            
 
-            // 📚 MENU
-            if (msg === "menu") {
-
-                await sock.sendMessage(from, {
-                    text:
+    // MENU
+    if (msg === 'menu') {
+        message.reply(
 `🌟 AUTO MIRAJ ACADEMY 🌟
 
 📚 පාඨමාලා මෙනුව:
 
-1 - 🚗 Automobile Technician & Electrician
-2 - 🎨 Auto Painting Course
-3 - 💻 ICT NVQ Level 4
-4 - 📄 ICT Certificate Course
+1 - 🚗 Automobile Technician & Electrician (මාස 24)
+2 - 🎨 Auto Painting Course (මාස 6 - NVQ Level 03)
+3 - 💻 ICT NVQ Level 4 (මාස 6)
+4 - 📄 ICT Certificate Course (Weekend - මාස 6)
 
-👉 Number එක reply කරන්න`
-                });
-            }
+👉 අදාළ number එක reply කරන්න`
+        );
+    }
 
-            // 🚗 OPTION 1
-            else if (msg === "1") {
+    // OPTION 1
+    else if (msg === '1') {
+        message.reply(
+`🚗 Automobile Technician & Electrician Course
 
-                await sock.sendMessage(from, {
-                    text:
-`🚗 Automobile Technician & Electrician
+⏳ කාලය: මාස 24  
+✔️ Full Time Training  
+✔️ Local & Foreign Job අවස්ථා`
+        );
+    }
 
-⏳ කාලය: මාස 24
-✔️ Full Time Training
-✔️ Local & Foreign Job Opportunities`
-                });
-            }
-
-            // 🎨 OPTION 2
-            else if (msg === "2") {
-
-                await sock.sendMessage(from, {
-                    text:
+    // OPTION 2
+    else if (msg === '2') {
+        message.reply(
 `🎨 Auto Painting Course
 
-⏳ කාලය: මාස 6
-✔️ NVQ Level 03
-✔️ Practical Training`
-                });
-            }
+⏳ කාලය: මාස 6  
+✔️ NVQ Level 03  
+✔️ Practical Training  
+✔️ Job oriented course`
+        );
+    }
 
-            // 💻 OPTION 3
-            else if (msg === "3") {
+    // OPTION 3
+    else if (msg === '3') {
+        message.reply(
+`💻 ICT NVQ Level 4 Course
 
-                await sock.sendMessage(from, {
-                    text:
-`💻 ICT NVQ Level 4
-
-⏳ කාලය: මාස 6
-✔️ TVEC Approved
+⏳ කාලය: මාස 6  
+✔️ TVEC පිළිගත් සහතිකය  
 ✔️ Job Training + IT Skills`
-                });
-            }
+        );
+    }
 
-            // 📄 OPTION 4
-            else if (msg === "4") {
-
-                await sock.sendMessage(from, {
-                    text:
+    // OPTION 4
+    else if (msg === '4') {
+        message.reply(
 `📄 ICT Certificate Course
 
-⏳ කාලය: මාස 6 (Weekend)
-✔️ Basic IT Skills
-✔️ Job Oriented`
-                });
+⏳ කාලය: මාස 6 (Weekend)  
+✔️ Short Course  
+✔️ Basic IT + Job Skills`
+        );
+    }
+
+});
+
+client.initialize();
             }
 
         } catch (err) {
-
-            console.log("❌ Message Error:", err);
+            console.log('❌ Message Error:', err);
         }
     });
 }
 
-// 🚀 RUN BOT
-startBot();
+startBot();    ,,,,,me code ek fix karal denn
